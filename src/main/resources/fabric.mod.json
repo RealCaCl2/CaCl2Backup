@@ -1,0 +1,31 @@
+{
+	"schemaVersion": 1,
+	"id": "cacl2backup",
+	"version": "${version}",
+	"name": "CaCl2Backup",
+	"description": "A comprehensive server backup mod for Minecraft. Features include multi-threaded compression, scheduled backups, automatic cleanup of old backups, and restore functionality.",
+	"authors": [
+		"CaCl2"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "MIT",
+	"icon": "assets/cacl2backup/icon.png",
+	"environment": "server",
+	"entrypoints": {
+		"main": [
+			"top.cacl2.CaCl2Backup"
+		]
+	},
+	"mixins": [
+		"cacl2backup.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.15.0",
+		"minecraft": ">=1.21 <1.22",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}

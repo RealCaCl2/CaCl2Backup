@@ -1,0 +1,12 @@
+{
+  "backupIntervalMinutes": 30,
+  "maxBackups": 10,
+  "compressionThreads": 16,
+  "compressionLevel": 6,
+  "autoBackupEnabled": true,
+  "autoCleanupEnabled": true,
+  "maxBackupAgeDays": 7,
+  "backupFolderName": "backups",
+  "broadcastBackupMessages": true,
+  "saveOnBackup": true
+}
