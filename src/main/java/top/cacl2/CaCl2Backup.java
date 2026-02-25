@@ -41,18 +41,31 @@ public class CaCl2Backup implements ModInitializer {
 
         scheduler = new BackupScheduler(backupManager, config, new BackupScheduler.BackupListener() {
             @Override
-            public void onBackupStart(String label) {
+            public boolean onBackupStart(String label) {
                 if (config.isSaveOnBackup() && server != null) {
                     try {
                         LOGGER.info("Saving world before backup...");
-                        server.saveEverything(true, true, true);
-                        server.getPlayerList().saveAll();
-                        LOGGER.info("World saved successfully");
+                        final boolean[] success = {false};
+                        server.executeBlocking(() -> {
+                            try {
+                                server.saveEverything(true, true, true);
+                                server.getPlayerList().saveAll();
+                                LOGGER.info("World saved successfully");
+                                success[0] = true;
+                            } catch (Exception e) {
+                                LOGGER.error("Failed to save before backup", e);
+                            }
+                        });
+                        if (!success[0]) {
+                            return false;
+                        }
                     } catch (Exception e) {
-                        LOGGER.warn("Failed to save before backup", e);
+                        LOGGER.error("Failed to execute save on main thread", e);
+                        return false;
                     }
                 }
                 LOGGER.info("Backup started: {}", label);
+                return true;
             }
 
             @Override

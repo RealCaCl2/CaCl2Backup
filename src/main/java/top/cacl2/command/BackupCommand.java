@@ -93,7 +93,10 @@ public class BackupCommand {
         }
 
         if (config.isSaveOnBackup()) {
-            saveWorld(source.getServer());
+            if (!saveWorld(source.getServer())) {
+                source.sendFailure(net.minecraft.network.chat.Component.literal("[CaCl2Backup] World save failed, backup cancelled"));
+                return 0;
+            }
         }
 
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Starting backup..."), true);
@@ -122,7 +125,10 @@ public class BackupCommand {
         }
 
         if (config.isSaveOnBackup()) {
-            saveWorld(source.getServer());
+            if (!saveWorld(source.getServer())) {
+                source.sendFailure(net.minecraft.network.chat.Component.literal("[CaCl2Backup] World save failed, backup cancelled"));
+                return 0;
+            }
         }
 
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Starting backup with label: " + label), true);
@@ -154,12 +160,22 @@ public class BackupCommand {
         }
     }
 
-    private void saveWorld(MinecraftServer server) {
+    private boolean saveWorld(MinecraftServer server) {
         try {
-            server.saveEverything(true, true, true);
-            server.getPlayerList().saveAll();
+            final boolean[] success = {false};
+            server.executeBlocking(() -> {
+                try {
+                    server.saveEverything(true, true, true);
+                    server.getPlayerList().saveAll();
+                    success[0] = true;
+                } catch (Exception e) {
+                    org.slf4j.LoggerFactory.getLogger("cacl2backup").error("Failed to save world before backup", e);
+                }
+            });
+            return success[0];
         } catch (Exception e) {
-            org.slf4j.LoggerFactory.getLogger("cacl2backup").warn("Failed to save world before backup", e);
+            org.slf4j.LoggerFactory.getLogger("cacl2backup").error("Failed to execute save on main thread", e);
+            return false;
         }
     }
 
@@ -288,6 +304,7 @@ public class BackupCommand {
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" Compression Threads: " + config.getCompressionThreads()), false);
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" Compression Level: " + config.getCompressionLevel()), false);
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" Currently Backing Up: " + (backupManager.isBackingUp() ? "Yes" : "No")), false);
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" Next Backup: " + scheduler.getNextBackupTimeFormatted()), false);
         
         List<BackupManager.BackupInfo> backups = backupManager.listBackups();
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" Total Backups: " + backups.size()), false);

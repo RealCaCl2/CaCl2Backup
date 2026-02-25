@@ -2,6 +2,10 @@ package top.cacl2.backup;
 
 import top.cacl2.config.BackupConfig;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.*;
 
 public class BackupScheduler {
@@ -11,6 +15,7 @@ public class BackupScheduler {
     private final BackupListener listener;
     private ScheduledFuture<?> backupTask;
     private ScheduledFuture<?> cleanupTask;
+    private long nextBackupTime;
 
     public BackupScheduler(BackupManager backupManager, BackupConfig config, BackupListener listener) {
         this.backupManager = backupManager;
@@ -33,12 +38,17 @@ public class BackupScheduler {
             backupTask.cancel(false);
         }
         
+        nextBackupTime = System.currentTimeMillis() + config.getBackupIntervalMillis();
         backupTask = scheduler.scheduleAtFixedRate(() -> {
+            nextBackupTime = System.currentTimeMillis() + config.getBackupIntervalMillis();
             if (backupManager.isBackingUp()) {
                 return;
             }
             
-            listener.onBackupStart("auto");
+            if (!listener.onBackupStart("auto")) {
+                listener.onBackupFailed("World save failed, backup cancelled");
+                return;
+            }
             backupManager.createBackup("auto")
                 .thenAccept(result -> {
                     if (result.isSuccess()) {
@@ -116,8 +126,30 @@ public class BackupScheduler {
         return backupTask != null && !backupTask.isCancelled();
     }
 
+    public String getNextBackupTimeFormatted() {
+        if (!isRunning()) {
+            return "N/A (Auto backup disabled)";
+        }
+        
+        long remaining = nextBackupTime - System.currentTimeMillis();
+        if (remaining <= 0) {
+            return "Soon";
+        }
+        
+        long minutes = remaining / 60000;
+        long seconds = (remaining % 60000) / 1000;
+        
+        LocalDateTime dateTime = LocalDateTime.ofInstant(
+            Instant.ofEpochMilli(nextBackupTime), 
+            ZoneId.systemDefault()
+        );
+        String timeStr = dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        
+        return String.format("%s (in %dm %ds)", timeStr, minutes, seconds);
+    }
+
     public interface BackupListener {
-        void onBackupStart(String label);
+        boolean onBackupStart(String label);
         void onBackupComplete(BackupManager.BackupResult result);
         void onBackupFailed(String error);
         void onCleanupComplete(int deletedCount);
