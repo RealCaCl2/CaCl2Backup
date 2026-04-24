@@ -15,10 +15,10 @@
 
 ## 系统要求
 
-- Minecraft 1.21.x
+- Minecraft 26.1.2
 - Fabric Loader 0.15.0+
 - Fabric API
-- Java 21+
+- Java 25+
 
 ## 安装
 
@@ -228,10 +228,10 @@ backup_YYYY-MM-DD_HH-mm-ss_标签.zip      # 带标签备份
 ## 开发信息
 
 - **作者：** CaCl2
-- **版本：** 1.0.0
+- **版本：** 1.0.1
 - **许可证：** MIT
-- **Minecraft版本：** 1.21.x
-- **Fabric API版本：** 0.141.3+
+- **Minecraft版本：** 26.1.2
+- **Fabric API版本：** 0.146.1+
 
 ## 更新日志
 
