@@ -235,6 +235,11 @@ backup_YYYY-MM-DD_HH-mm-ss_标签.zip      # 带标签备份
 
 ## 更新日志
 
+### 1.0.1
+- 更新至 Minecraft 26.1.2
+- 新增 GitHub Release 自动发布工作流
+- Java 版本要求提升至 25+
+
 ### 1.0.0
 - 初始版本发布
 - 多线程压缩支持
