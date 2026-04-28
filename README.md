@@ -6,12 +6,13 @@
 
 - **自动定时备份** - 可配置的定时自动备份，服务器启动后按间隔执行
 - **多线程压缩** - 使用多线程并行压缩，大幅提升备份速度
-- **自动清理** - 自动清理过期备份，支持按数量和时间双重限制
+- **自动清理** - 每小时自动检查并清理过期备份，支持按数量和时间双重限制
 - **完整恢复** - 支持从备份完整恢复世界存档
-- **标签系统** - 为备份添加标签，便于识别和管理
+- **标签系统** - 为备份添加标签，便于识别和管理（特殊字符自动替换为下划线）
 - **序号操作** - 使用序号快速选择备份，无需输入完整文件名
 - **实时状态** - 查看备份状态、配置信息和备份列表
 - **热重载配置** - 无需重启服务器即可重载配置
+- **自动重启还原** - 恢复备份后可选自动重启服务器完成还原
 
 ## 系统要求
 
@@ -185,6 +186,10 @@ backup_YYYY-MM-DD_HH-mm-ss_标签.zip      # 带标签备份
 - `backup_2024-02-20_10-30-00.zip`
 - `backup_2024-02-20_10-30-00_before_update.zip`
 
+**标签命名规则：**
+- 只允许：字母 `a-zA-Z`、数字 `0-9`、下划线 `_`、连字符 `-`
+- 其他字符（空格、中文、特殊符号等）会自动替换为下划线 `_`
+
 ## 性能说明
 
 ### 多线程压缩
@@ -258,7 +263,9 @@ backup_YYYY-MM-DD_HH-mm-ss_标签.zip      # 带标签备份
 ## 更新日志
 
 ### 1.0.2
-- 新增 `/backup restarter` 命令，支持自动重启服务器完成还原
+- 重构恢复流程：移除 `/backup restarter` 命令，自动重启功能集成到 `/backup restore`
+- 新增配置项：`autoRestartAfterRestore`、`restartDelaySeconds`、`restoreRestartMessage`、`broadcastRestoreMessage`
+- 新增配置命令：`/backup config autorestart`、`/backup config restartdelay`、`/backup config restartmessage`、`/backup config broadcastrestart`
 
 ### 1.0.1
 - 更新至 Minecraft 26.1.2
