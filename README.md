@@ -1,5 +1,7 @@
 # CaCl2Backup
 
+中文 | [English](README_EN.md)
+
 一个功能完善的Minecraft服务器备份模组，专为Fabric设计。
 
 ## 功能特性
