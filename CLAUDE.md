@@ -41,7 +41,7 @@ World dir: gameDir + "/world"
 
 ## Key Behaviors
 
-- **Restore flow**: User runs `/backup restore`, files extract to `world_temp_restore`, save `.pending_restore` file, server must be stopped. On next SERVER_STARTING, `RestoreManager.executePendingRestore()` swaps directories and deletes pending file.
+- **Restore flow**: User runs `/backup restore <backup>`, files extract to `world_temp_restore`, save `.pending_restore` file. If `autoRestartAfterRestore=true` in config, broadcasts restart message and auto-restarts after `restartDelaySeconds`. Otherwise user must stop server manually. On next SERVER_STARTING, `RestoreManager.executePendingRestore()` swaps directories and deletes pending file.
 - **Backup naming**: `backup_YYYY-MM-DD_HH-mm-ss.zip` or `backup_YYYY-MM-DD_HH-mm-ss_label.zip`
 - **Only server-side** (`"environment": "server"` in fabric.mod.json) — no client code
 

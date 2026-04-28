@@ -61,6 +61,10 @@
 | `/backup config autocleanup <on/off>` | 开启/关闭自动清理 | `/backup config autocleanup on` |
 | `/backup config threads <数量>` | 设置压缩线程数 | `/backup config threads 4` |
 | `/backup config level <1-9>` | 设置压缩级别 | `/backup config level 6` |
+| `/backup config autorestart <on/off>` | 开启/关闭还原后自动重启 | `/backup config autorestart on` |
+| `/backup config restartdelay <秒>` | 设置自动重启延迟 | `/backup config restartdelay 60` |
+| `/backup config restartmessage <消息>` | 设置重启提示消息（{seconds}占位符） | `/backup config restartmessage "服务器将在 {seconds} 秒后重启..."` |
+| `/backup config broadcastrestart <on/off>` | 开启/关闭重启提示广播 | `/backup config broadcastrestart on` |
 
 ## 配置文件
 
@@ -77,7 +81,11 @@
   "maxBackupAgeDays": 7,
   "backupFolderName": "backups",
   "broadcastBackupMessages": true,
-  "saveOnBackup": true
+  "saveOnBackup": true,
+  "autoRestartAfterRestore": false,
+  "restartDelaySeconds": 60,
+  "restoreRestartMessage": "服务器将在 {seconds} 秒后重启以完成还原...",
+  "broadcastRestoreMessage": true
 }
 ```
 
@@ -95,6 +103,10 @@
 | `backupFolderName` | String | "backups" | 备份文件夹名称 |
 | `broadcastBackupMessages` | boolean | true | 是否向所有玩家广播备份消息 |
 | `saveOnBackup` | boolean | true | 备份前是否保存世界 |
+| `autoRestartAfterRestore` | boolean | false | 还原后是否自动重启服务器 |
+| `restartDelaySeconds` | int | 60 | 自动重启延迟秒数，最小值10 |
+| `restoreRestartMessage` | String | "服务器将在 {seconds} 秒后重启以完成还原..." | 重启提示消息，{seconds}会被替换为延迟秒数 |
+| `broadcastRestoreMessage` | boolean | true | 是否广播重启提示消息 |
 
 ## 使用指南
 
@@ -132,9 +144,19 @@
    /backup restore 1
    ```
 
-3. **停止服务器**以完成恢复
+3. 根据配置决定后续行为：
+   - **autoRestartAfterRestore=false（默认）**：手动停止服务器完成恢复
+   - **autoRestartAfterRestore=true**：模组自动在指定延迟后重启服务器
 
-4. 再次启动服务器，世界将恢复到备份状态
+4. 服务器启动时自动完成世界还原
+
+**配置自动重启行为：**
+```
+/backup config autorestart on          # 开启自动重启
+/backup config restartdelay 60         # 设置延迟60秒
+/backup config restartmessage "服务器将在 {seconds} 秒后重启..."  # 自定义消息
+/backup config broadcastrestart on     # 开启广播
+```
 
 ### 删除备份
 
@@ -228,12 +250,15 @@ backup_YYYY-MM-DD_HH-mm-ss_标签.zip      # 带标签备份
 ## 开发信息
 
 - **作者：** CaCl2
-- **版本：** 1.0.1
+- **版本：** 1.0.2
 - **许可证：** MIT
 - **Minecraft版本：** 26.1.2
 - **Fabric API版本：** 0.146.1+
 
 ## 更新日志
+
+### 1.0.2
+- 新增 `/backup restarter` 命令，支持自动重启服务器完成还原
 
 ### 1.0.1
 - 更新至 Minecraft 26.1.2

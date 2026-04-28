@@ -24,8 +24,12 @@ public class BackupConfig {
     private boolean autoCleanupEnabled = true;
     private int maxBackupAgeDays = 7;
     private String backupFolderName = "backups";
-    private boolean broadcastBackupMessages = true;
+private boolean broadcastBackupMessages = true;
     private boolean saveOnBackup = true;
+    private boolean autoRestartAfterRestore = false;
+    private int restartDelaySeconds = 60;
+    private String restoreRestartMessage = "服务器将在 {seconds} 秒后重启以完成还原...";
+    private boolean broadcastRestoreMessage = true;
 
     public static BackupConfig load() {
         BackupConfig config = new BackupConfig();
@@ -136,5 +140,37 @@ public class BackupConfig {
 
     public void setSaveOnBackup(boolean saveOnBackup) {
         this.saveOnBackup = saveOnBackup;
+    }
+
+    public boolean isAutoRestartAfterRestore() {
+        return autoRestartAfterRestore;
+    }
+
+    public void setAutoRestartAfterRestore(boolean autoRestartAfterRestore) {
+        this.autoRestartAfterRestore = autoRestartAfterRestore;
+    }
+
+    public int getRestartDelaySeconds() {
+        return restartDelaySeconds;
+    }
+
+    public void setRestartDelaySeconds(int restartDelaySeconds) {
+        this.restartDelaySeconds = Math.max(10, restartDelaySeconds);
+    }
+
+    public String getRestoreRestartMessage() {
+        return restoreRestartMessage;
+    }
+
+    public void setRestoreRestartMessage(String restoreRestartMessage) {
+        this.restoreRestartMessage = restoreRestartMessage;
+    }
+
+    public boolean isBroadcastRestoreMessage() {
+        return broadcastRestoreMessage;
+    }
+
+    public void setBroadcastRestoreMessage(boolean broadcastRestoreMessage) {
+        this.broadcastRestoreMessage = broadcastRestoreMessage;
     }
 }

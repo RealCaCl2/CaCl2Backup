@@ -4,7 +4,10 @@
       "Bash(curl -sL \"https://piston-meta.mojang.com/mc/game/version_manifest_v2.json\")",
       "Bash(python -c \"import sys,json; data=json.load\\(sys.stdin\\); versions=[v['id'] for v in data['versions'] if '26.' in v['id']]; print\\('\\\\n'.join\\(versions[:30]\\)\\)\")",
       "Bash(curl -s \"https://maven.fabricmc.net/net/fabricmc/fabric-loom-remap/maven-metadata.xml\")",
-      "Bash(curl -s \"https://maven.fabricmc.net/net/fabricmc/fabric-loom/maven-metadata.xml\")"
+      "Bash(curl -s \"https://maven.fabricmc.net/net/fabricmc/fabric-loom/maven-metadata.xml\")",
+      "Bash(JAVA_HOME=\"C:/Program Files/Microsoft/jdk-25.0.2.10-hotspot\" ./gradlew build)",
+      "Bash(git add *)",
+      "Bash(git commit --amend -m ' *)"
     ]
   }
 }

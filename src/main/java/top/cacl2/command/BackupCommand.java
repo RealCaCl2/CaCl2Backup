@@ -19,7 +19,7 @@ public class BackupCommand {
     private final BackupScheduler scheduler;
     private final BackupConfig config;
 
-    public BackupCommand(BackupManager backupManager, RestoreManager restoreManager, 
+    public BackupCommand(BackupManager backupManager, RestoreManager restoreManager,
                          BackupScheduler scheduler, BackupConfig config) {
         this.backupManager = backupManager;
         this.restoreManager = restoreManager;
@@ -81,12 +81,28 @@ public class BackupCommand {
                 .then(Commands.literal("level")
                     .executes(this::showLevel)
                     .then(Commands.argument("level", IntegerArgumentType.integer(1, 9))
-                        .executes(this::setCompressionLevel)))));
+                        .executes(this::setCompressionLevel)))
+                .then(Commands.literal("autorestart")
+                    .executes(this::showAutoRestart)
+                    .then(Commands.argument("enabled", StringArgumentType.word())
+                        .executes(this::setAutoRestart)))
+                .then(Commands.literal("restartdelay")
+                    .executes(this::showRestartDelay)
+                    .then(Commands.argument("seconds", IntegerArgumentType.integer(10))
+                        .executes(this::setRestartDelay)))
+                .then(Commands.literal("restartmessage")
+                    .executes(this::showRestartMessage)
+                    .then(Commands.argument("message", StringArgumentType.greedyString())
+                        .executes(this::setRestartMessage)))
+                .then(Commands.literal("broadcastrestart")
+                    .executes(this::showBroadcastRestart)
+                    .then(Commands.argument("enabled", StringArgumentType.word())
+                        .executes(this::setBroadcastRestart)))));
     }
 
     private int createBackup(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
-        
+
         if (backupManager.isBackingUp()) {
             source.sendFailure(net.minecraft.network.chat.Component.literal("[CaCl2Backup] A backup is already in progress!"));
             return 0;
@@ -100,7 +116,7 @@ public class BackupCommand {
         }
 
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Starting backup..."), true);
-        
+
         backupManager.createBackup().thenAccept(result -> {
             if (result.isSuccess()) {
                 source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] " + result.getMessage()), true);
@@ -111,14 +127,14 @@ public class BackupCommand {
                 source.sendFailure(net.minecraft.network.chat.Component.literal("[CaCl2Backup] " + result.getMessage()));
             }
         });
-        
+
         return 1;
     }
 
     private int createBackupWithLabel(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
         String label = StringArgumentType.getString(context, "label");
-        
+
         if (backupManager.isBackingUp()) {
             source.sendFailure(net.minecraft.network.chat.Component.literal("[CaCl2Backup] A backup is already in progress!"));
             return 0;
@@ -132,7 +148,7 @@ public class BackupCommand {
         }
 
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Starting backup with label: " + label), true);
-        
+
         backupManager.createBackup(label).thenAccept(result -> {
             if (result.isSuccess()) {
                 source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] " + result.getMessage()), true);
@@ -143,7 +159,7 @@ public class BackupCommand {
                 source.sendFailure(net.minecraft.network.chat.Component.literal("[CaCl2Backup] " + result.getMessage()));
             }
         });
-        
+
         return 1;
     }
 
@@ -182,37 +198,37 @@ public class BackupCommand {
     private int listBackups(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
         List<BackupManager.BackupInfo> backups = backupManager.listBackups();
-        
+
         if (backups.isEmpty()) {
             source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] No backups found."), false);
             return 0;
         }
 
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Available backups (" + backups.size() + "):"), false);
-        
+
         for (int i = 0; i < Math.min(backups.size(), 20); i++) {
             BackupManager.BackupInfo info = backups.get(i);
             String label = info.getLabel().isEmpty() ? "" : " [" + info.getLabel() + "]";
             final int index = i;
             source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(
-                String.format("%d. %s%s - %s", 
-                    index + 1, 
-                    info.getFormattedTime(), 
+                String.format("%d. %s%s - %s",
+                    index + 1,
+                    info.getFormattedTime(),
                     label,
                     info.getFormattedSize())), false);
         }
-        
+
         if (backups.size() > 20) {
             source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("... and " + (backups.size() - 20) + " more"), false);
         }
-        
+
         return backups.size();
     }
 
     private int restoreBackup(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
         String input = StringArgumentType.getString(context, "backup");
-        
+
         if (restoreManager.isRestoring()) {
             source.sendFailure(net.minecraft.network.chat.Component.literal("[CaCl2Backup] A restore is already in progress!"));
             return 0;
@@ -224,36 +240,40 @@ public class BackupCommand {
             return 0;
         }
 
+        boolean autoRestart = config.isAutoRestartAfterRestore();
+        String restartInfo = autoRestart
+            ? " (server will auto-restart in " + config.getRestartDelaySeconds() + " seconds)"
+            : " (manual restart required)";
+
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] WARNING: This will replace the current world!"), false);
-        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Preparing restore from: " + backupName), true);
-        
-        restoreManager.restoreBackup(backupName).thenAccept(result -> {
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Preparing restore from: " + backupName + restartInfo), true);
+
+        restoreManager.restoreBackup(source.getServer(), config, backupName).thenAccept(result -> {
             if (result.isSuccess()) {
                 source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] " + result.getMessage()), true);
-                source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] STOP the server now to complete the restore!"), true);
             } else {
                 source.sendFailure(net.minecraft.network.chat.Component.literal("[CaCl2Backup] " + result.getMessage()));
             }
         });
-        
+
         return 1;
     }
 
     private int deleteBackup(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
         String input = StringArgumentType.getString(context, "backup");
-        
+
         String backupName = resolveBackupName(input);
         if (backupName == null) {
             source.sendFailure(net.minecraft.network.chat.Component.literal("[CaCl2Backup] Invalid backup number or name: " + input));
             return 0;
         }
-        
+
         Path backupFile = backupManager.getBackupDir().resolve(backupName);
         if (!backupName.endsWith(".zip")) {
             backupFile = backupManager.getBackupDir().resolve(backupName + ".zip");
         }
-        
+
         if (backupManager.deleteBackup(backupFile)) {
             source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Deleted backup: " + backupName), true);
             return 1;
@@ -278,23 +298,23 @@ public class BackupCommand {
 
     private int cleanupBackups(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
-        
+
         BackupCleaner cleaner = new BackupCleaner(
             backupManager.getBackupDir(),
             config.getMaxBackups(),
             config.getMaxBackupAgeDays()
         );
-        
+
         int deleted = cleaner.cleanup();
         final int count = deleted;
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Cleaned up " + count + " old backup(s)"), true);
-        
+
         return deleted;
     }
 
     private int showStatus(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
-        
+
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Status:"), false);
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" Auto Backup: " + (config.isAutoBackupEnabled() ? "Enabled" : "Disabled")), false);
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" Auto Cleanup: " + (config.isAutoCleanupEnabled() ? "Enabled" : "Disabled")), false);
@@ -303,18 +323,22 @@ public class BackupCommand {
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" Max Backup Age: " + config.getMaxBackupAgeDays() + " days"), false);
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" Compression Threads: " + config.getCompressionThreads()), false);
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" Compression Level: " + config.getCompressionLevel()), false);
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" Auto Restart After Restore: " + (config.isAutoRestartAfterRestore() ? "Enabled" : "Disabled")), false);
+        if (config.isAutoRestartAfterRestore()) {
+            source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" Restart Delay: " + config.getRestartDelaySeconds() + " seconds"), false);
+        }
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" Currently Backing Up: " + (backupManager.isBackingUp() ? "Yes" : "No")), false);
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" Next Backup: " + scheduler.getNextBackupTimeFormatted()), false);
-        
+
         List<BackupManager.BackupInfo> backups = backupManager.listBackups();
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" Total Backups: " + backups.size()), false);
-        
+
         return 1;
     }
 
     private int reloadConfig(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
-        
+
         BackupConfig newConfig = BackupConfig.load();
         config.setBackupIntervalMinutes(newConfig.getBackupIntervalMinutes());
         config.setMaxBackups(newConfig.getMaxBackups());
@@ -323,9 +347,13 @@ public class BackupCommand {
         config.setAutoCleanupEnabled(newConfig.isAutoCleanupEnabled());
         config.setCompressionThreads(newConfig.getCompressionThreads());
         config.setCompressionLevel(newConfig.getCompressionLevel());
-        
+        config.setAutoRestartAfterRestore(newConfig.isAutoRestartAfterRestore());
+        config.setRestartDelaySeconds(newConfig.getRestartDelaySeconds());
+        config.setRestoreRestartMessage(newConfig.getRestoreRestartMessage());
+        config.setBroadcastRestoreMessage(newConfig.isBroadcastRestoreMessage());
+
         scheduler.restart();
-        
+
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Configuration reloaded!"), true);
         return 1;
     }
@@ -333,11 +361,11 @@ public class BackupCommand {
     private int setInterval(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
         int minutes = IntegerArgumentType.getInteger(context, "minutes");
-        
+
         config.setBackupIntervalMinutes(minutes);
         config.save();
         scheduler.restart();
-        
+
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Backup interval set to " + minutes + " minutes"), true);
         return 1;
     }
@@ -345,10 +373,10 @@ public class BackupCommand {
     private int setMaxBackups(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
         int count = IntegerArgumentType.getInteger(context, "count");
-        
+
         config.setMaxBackups(count);
         config.save();
-        
+
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Max backups set to " + count), true);
         return 1;
     }
@@ -356,10 +384,10 @@ public class BackupCommand {
     private int setMaxAge(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
         int days = IntegerArgumentType.getInteger(context, "days");
-        
+
         config.setMaxBackupAgeDays(days);
         config.save();
-        
+
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Max backup age set to " + days + " days"), true);
         return 1;
     }
@@ -367,12 +395,12 @@ public class BackupCommand {
     private int setAutoBackup(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
         String enabled = StringArgumentType.getString(context, "enabled").toLowerCase();
-        
+
         boolean value = enabled.equals("true") || enabled.equals("on") || enabled.equals("1");
         config.setAutoBackupEnabled(value);
         config.save();
         scheduler.restart();
-        
+
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Auto backup " + (value ? "enabled" : "disabled")), true);
         return 1;
     }
@@ -380,12 +408,12 @@ public class BackupCommand {
     private int setAutoCleanup(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
         String enabled = StringArgumentType.getString(context, "enabled").toLowerCase();
-        
+
         boolean value = enabled.equals("true") || enabled.equals("on") || enabled.equals("1");
         config.setAutoCleanupEnabled(value);
         config.save();
         scheduler.restart();
-        
+
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Auto cleanup " + (value ? "enabled" : "disabled")), true);
         return 1;
     }
@@ -393,10 +421,10 @@ public class BackupCommand {
     private int setThreads(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
         int count = IntegerArgumentType.getInteger(context, "count");
-        
+
         config.setCompressionThreads(count);
         config.save();
-        
+
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Compression threads set to " + count), true);
         return 1;
     }
@@ -404,17 +432,63 @@ public class BackupCommand {
     private int setCompressionLevel(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
         int level = IntegerArgumentType.getInteger(context, "level");
-        
+
         config.setCompressionLevel(level);
         config.save();
-        
+
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Compression level set to " + level), true);
+        return 1;
+    }
+
+    private int setAutoRestart(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        String enabled = StringArgumentType.getString(context, "enabled").toLowerCase();
+
+        boolean value = enabled.equals("true") || enabled.equals("on") || enabled.equals("1");
+        config.setAutoRestartAfterRestore(value);
+        config.save();
+
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Auto restart after restore " + (value ? "enabled" : "disabled")), true);
+        return 1;
+    }
+
+    private int setRestartDelay(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        int seconds = IntegerArgumentType.getInteger(context, "seconds");
+
+        config.setRestartDelaySeconds(seconds);
+        config.save();
+
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Restart delay set to " + seconds + " seconds"), true);
+        return 1;
+    }
+
+    private int setRestartMessage(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        String message = StringArgumentType.getString(context, "message");
+
+        config.setRestoreRestartMessage(message);
+        config.save();
+
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Restart message updated"), true);
+        return 1;
+    }
+
+    private int setBroadcastRestart(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        String enabled = StringArgumentType.getString(context, "enabled").toLowerCase();
+
+        boolean value = enabled.equals("true") || enabled.equals("on") || enabled.equals("1");
+        config.setBroadcastRestoreMessage(value);
+        config.save();
+
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Broadcast restart message " + (value ? "enabled" : "disabled")), true);
         return 1;
     }
 
     private int showConfig(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
-        
+
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Configuration:"), false);
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" interval: " + config.getBackupIntervalMinutes() + " minutes"), false);
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" maxbackups: " + config.getMaxBackups()), false);
@@ -423,7 +497,13 @@ public class BackupCommand {
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" autocleanup: " + (config.isAutoCleanupEnabled() ? "on" : "off")), false);
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" threads: " + config.getCompressionThreads()), false);
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" level: " + config.getCompressionLevel()), false);
-        
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" autorestart: " + (config.isAutoRestartAfterRestore() ? "on" : "off")), false);
+        if (config.isAutoRestartAfterRestore()) {
+            source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" restartdelay: " + config.getRestartDelaySeconds() + " seconds"), false);
+            source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" restartmessage: " + config.getRestoreRestartMessage()), false);
+            source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(" broadcastrestart: " + (config.isBroadcastRestoreMessage() ? "on" : "off")), false);
+        }
+
         return 1;
     }
 
@@ -466,6 +546,30 @@ public class BackupCommand {
     private int showLevel(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Current compression level: " + config.getCompressionLevel()), false);
+        return 1;
+    }
+
+    private int showAutoRestart(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Auto restart after restore: " + (config.isAutoRestartAfterRestore() ? "on" : "off")), false);
+        return 1;
+    }
+
+    private int showRestartDelay(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Restart delay: " + config.getRestartDelaySeconds() + " seconds"), false);
+        return 1;
+    }
+
+    private int showRestartMessage(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Restart message: " + config.getRestoreRestartMessage()), false);
+        return 1;
+    }
+
+    private int showBroadcastRestart(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal("[CaCl2Backup] Broadcast restart message: " + (config.isBroadcastRestoreMessage() ? "on" : "off")), false);
         return 1;
     }
 }
